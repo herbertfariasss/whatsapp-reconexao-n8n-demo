@@ -2,6 +2,12 @@
 
 Versão demonstrativa de uma automação que desenvolvi para uso no trabalho. O fluxo recebe eventos de conexão de instâncias de uma API não oficial de WhatsApp, avisa um grupo quando uma instância desconecta e permite solicitar um novo QR Code por botão. Quando a instância volta a conectar, envia uma confirmação.
 
+## Visão do fluxo
+
+![Visão dos dois caminhos da automação no n8n, com endpoints substituídos por exemplos](assets/fluxo-n8n-demo.png)
+
+*Captura ilustrativa do fluxo em uso. Os trechos de URLs foram substituídos por texto de exemplo para a publicação.*
+
 O arquivo [`workflow.demo.json`](workflow.demo.json) conserva os 22 nós e as conexões principais da automação. Foi preparado para mostrar a arquitetura, **não para execução imediata**.
 
 ## Como funciona
