@@ -1,0 +1,982 @@
+{
+  "name": "Reconexão de instâncias WhatsApp - demonstração",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "demo-status-instancia",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -3296,
+        864
+      ],
+      "id": "c6c304f9-b813-475b-884e-90b6413671f9",
+      "name": "Webhook",
+      "webhookId": "d29ad0c7-74d1-45ea-aff5-c27d66f97983"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "eventType",
+              "value": "={{ $json.body.EventType }}",
+              "type": "string"
+            },
+            {
+              "id": "s2",
+              "name": "status",
+              "value": "={{ $json.body.instance.status }}",
+              "type": "string"
+            },
+            {
+              "id": "s3",
+              "name": "instanceName",
+              "value": "={{ $json.body.instanceName }}",
+              "type": "string"
+            },
+            {
+              "id": "s4",
+              "name": "phone",
+              "value": "={{ String($json.body.owner || '').replace(/\\D/g, '') }}",
+              "type": "string"
+            },
+            {
+              "id": "s5",
+              "name": "instanceToken",
+              "value": "={{ $json.body.token }}",
+              "type": "string"
+            },
+            {
+              "id": "s6",
+              "name": "reason",
+              "value": "={{ $json.body.instance.lastDisconnectReason }}",
+              "type": "string"
+            },
+            {
+              "id": "s7",
+              "name": "logoutType",
+              "value": "={{ $json.body.type }}",
+              "type": "string"
+            },
+            {
+              "id": "s8",
+              "name": "quando",
+              "value": "={{ (() => { const d = DateTime.fromISO(String($json.body.instance.lastDisconnect || '').replace(' ', 'T')); return (d.isValid ? d : $now).setZone('America/Sao_Paulo').toFormat('dd/MM/yyyy HH:mm:ss'); })() }}",
+              "type": "string"
+            },
+            {
+              "id": "s9",
+              "name": "alertToken",
+              "value": "SUBSTITUA_PELO_TOKEN_DA_INSTANCIA_DE_ALERTAS",
+              "type": "string"
+            },
+            {
+              "id": "s10",
+              "name": "alertNumber",
+              "value": "NUMERO_DE_ALERTA_EXEMPLO",
+              "type": "string"
+            },
+            {
+              "id": "74c8b853-b639-4198-94d9-6ca8699d9853",
+              "name": "groupId",
+              "value": "={{ (() => { const grupos = { 'instancia_alpha': 'GRUPO_ALPHA@g.us', 'instancia_beta': 'GRUPO_BETA@g.us' }; const nome = String($json.body.instanceName || '').normalize('NFC').trim().toLowerCase(); return grupos[nome] || 'GRUPO_TESTE@g.us'; })() }}",
+              "type": "string"
+            },
+            {
+              "id": "a34141ad-657b-4070-a883-ecb31958e94f",
+              "name": "linkReconexao",
+              "value": "https://painel.example.invalid/reconectar/INSTANCIA_EXEMPLO",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8dacecc4-2c28-4e7c-b573-f70090567e9e",
+      "name": "Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3072,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "i1",
+              "leftValue": "={{ $json.eventType }}",
+              "rightValue": "connection",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "i2",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "disconnected",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "i3",
+              "leftValue": "={{ $json.instanceToken }}",
+              "rightValue": "={{ $json.alertToken }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "dc3de13d-addf-4609-9fd2-5c7b41e90eda",
+              "leftValue": "={{ String($json.reason || '') }}",
+              "rightValue": "QR Code timeout",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ef7a7451-e52b-426b-9759-654abc64565d",
+      "name": "Instância desconectou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2848,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-mensagens.example.invalid/send/menu",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Dados').first().json.alertToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $('Dados').first().json.groupId, type: 'button', text: 'Seu Whatsapp foi desconectado!\\n\\nInstância: ' + $('Dados').first().json.instanceName + '\\n\\nDeseja reconectar agora?', choices: ['Sim|sim_' + encodeURIComponent(String($('Dados').first().json.instanceName || '').normalize('NFC').trim().toLowerCase())], footerText: 'Clique em \"Sim\" para gerar o QR code' }) }}",
+        "options": {}
+      },
+      "id": "7fd6a57d-ddec-4da9-b951-7dc30545c519",
+      "name": "Enviar alerta WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2624,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "k1",
+              "leftValue": "={{ $json.eventType }}",
+              "rightValue": "connection",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "k2",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "connected",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "k3",
+              "leftValue": "={{ $json.instanceToken }}",
+              "rightValue": "={{ $json.alertToken }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3e4a7103-f750-49f2-98f1-4cb1ef59adcf",
+      "name": "Instância conectou?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2624,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "m1",
+              "name": "alertToken",
+              "value": "={{ $json.alertToken }}",
+              "type": "string"
+            },
+            {
+              "id": "m2",
+              "name": "alertNumber",
+              "value": "={{ $json.alertNumber }}",
+              "type": "string"
+            },
+            {
+              "id": "m3",
+              "name": "text",
+              "value": "=✅ *WhatsApp conectado*\n\nInstância: *{{ $json.instanceName }}*\nNúmero: {{ $json.phone }}\nHorário: {{ $now.setZone('America/Sao_Paulo').toFormat('dd/MM/yyyy HH:mm:ss') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2f1e3725-45f3-436b-9b2c-8f34f4c7f8b2",
+      "name": "Montar mensagem conectado",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2400,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-mensagens.example.invalid/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Dados').first().json.alertToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $('Dados').first().json.groupId }}"
+            },
+            {
+              "name": "=text",
+              "value": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "49783f31-9763-4543-812a-248c0389efe4",
+      "name": "Enviar alerta WhatsApp2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2176,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "demo-acao-reconexao",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -3296,
+        128
+      ],
+      "id": "a5ab9fa0-3ce1-4459-b93b-9a84908922ba",
+      "name": "Webhook1",
+      "webhookId": "5f2b9528-025d-4842-aa4a-6ccad3489c0b"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "q1",
+              "leftValue": "={{ $json.body.EventType }}",
+              "rightValue": "messages",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "q2",
+              "leftValue": "={{ $json.body.message?.buttonOrListid }}",
+              "rightValue": "sim_",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ec8a250f-7a28-4e1f-b15c-3390c125a200",
+      "name": "Clique em Sim?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -3072,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Webhook1').first().json.body || {};\nconst msg = body.message || {};\nconst chatid = msg.chatid || '';\n\nlet chave = '';\ntry {\n  chave = decodeURIComponent(String(msg.buttonOrListid || '').replace(/^sim_/, ''));\n} catch (e) {}\n\nconst row = $input.first().json || {};\nconst token = row.token || '';\nconst nome = String(chave || row.instanceName || '').toUpperCase();\nconst quemClicou = msg.senderName || 'alguém';\n\n// Endereço da Zaptos da instância (servidor /whatsapp, /whatsapp2... ). Padrão: /whatsapp/\nlet baseUrl = String(row.baseUrl || 'https://api-zaptos.example.invalid/whatsapp/').trim();\nif (!baseUrl.endsWith('/')) baseUrl += '/';\n\nlet erro = '';\nif (!token) {\n  erro = 'Ainda não tenho o token da instância ' + nome + '. Ele é salvo automaticamente no primeiro evento de conexão dela (ou pode ser cadastrado na tabela zaptos_instancias).';\n}\n\nreturn [{\n  json: {\n    chatid,\n    quemClicou,\n    instanceName: nome,\n    instanceToken: token,\n    baseUrl,\n    found: !!token,\n    erro,\n    alertToken: body.token\n  }\n}];"
+      },
+      "id": "29a4bc1c-746a-4a3a-b034-1b85f164a42f",
+      "name": "Identificar instância",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c-03",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1078f45b-5b3a-4a06-86ca-88cd594deba3",
+      "name": "Instância identificada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2400,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.baseUrl }}instance/connect",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $json.instanceToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "id": "c56f7383-c4b3-49b5-93e5-e0bdcc4cbfe8",
+      "name": "Gerar QR (Zaptos)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2176,
+        48
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "8370543e-c9df-4420-b3ee-e1755f6c8844",
+      "name": "Aguardar 3s QR",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1952,
+        48
+      ],
+      "webhookId": "4ea44e77-71e3-4974-b585-631abf34fa49"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Identificar instância').first().json.baseUrl }}instance/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Identificar instância').first().json.instanceToken }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c621a066-f91d-4c59-a907-a26e9de628d5",
+      "name": "Buscar QR (Zaptos)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1728,
+        48
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Identificar instância').first().json;\nconst st = $input.first().json;\n\nconst find = (obj, re) => {\n  let r;\n  const walk = (o) => {\n    if (r || o == null) return;\n    if (typeof o === 'object') {\n      for (const [k, v] of Object.entries(o)) {\n        if (re.test(k) && typeof v === 'string' && v.length > 50) { r = v; return; }\n        walk(v);\n      }\n    }\n  };\n  walk(obj);\n  return r;\n};\n\nconst qr = find(st, /qr/i);\nconst erro = qr ? '' : 'Não consegui gerar o QR code da instância ' + ctx.instanceName + '. Use o link de reconexão do painel da Zaptos.';\nconst caption = '📷 *QR code - ' + ctx.instanceName + '*\\n\\nEscaneie agora (expira em ~30 segundos):\\nWhatsApp > Aparelhos conectados > Conectar um aparelho.\\n\\nSolicitado por: ' + ctx.quemClicou;\n\nreturn [{ json: { chatid: ctx.chatid, alertToken: ctx.alertToken, hasQr: !!qr, qr: qr || '', caption, erro } }];"
+      },
+      "id": "33ffa682-4f41-4e94-8dca-2ac673f2e30c",
+      "name": "Extrair QR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1504,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c-08",
+              "leftValue": "={{ $json.hasQr }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c0d0b064-5ff2-4305-b559-9f42cd7043f4",
+      "name": "QR gerado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1280,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-mensagens.example.invalid/send/media",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $json.alertToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.chatid, type: 'image', file: $json.qr, text: $json.caption }) }}",
+        "options": {}
+      },
+      "id": "82859751-b702-4a5b-8066-5da38e920c82",
+      "name": "Enviar QR no grupo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1056,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-mensagens.example.invalid/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $json.alertToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.chatid, text: '⚠️ ' + $json.erro }) }}",
+        "options": {}
+      },
+      "id": "bfbeccd2-3d76-40e5-b949-d83a93cb95ed",
+      "name": "Enviar aviso de falha",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1056,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "s1",
+              "leftValue": "={{ $json.groupId }}",
+              "rightValue": "SEM_GRUPO",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "s2",
+              "leftValue": "={{ $json.instanceToken }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "758e01ed-4778-42f1-b512-cb080d134ac3",
+      "name": "Salvar token?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2848,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SUBSTITUA_PELO_ID_DA_TABELA_N8N",
+          "mode": "id"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "instanceName",
+              "keyValue": "={{ String($json.instanceName || '').normalize('NFC').trim().toLowerCase() }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "groupId": "={{ $json.groupId }}",
+            "instanceName": "={{ String($json.instanceName || '').normalize('NFC').trim().toLowerCase() }}",
+            "token": "={{ $json.instanceToken }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "groupId",
+              "displayName": "groupId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "instanceName",
+              "displayName": "instanceName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "token",
+              "displayName": "token",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "0fe64604-2ebc-4389-b1bf-3ace4a580cda",
+      "name": "Guardar token da instância",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -2624,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "SUBSTITUA_PELO_ID_DA_TABELA_N8N",
+          "mode": "id"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "instanceName",
+              "keyValue": "={{ (() => { try { return decodeURIComponent(String($json.body.message.buttonOrListid || '').replace(/^sim_/, '')).normalize('NFC').trim().toLowerCase(); } catch (e) { return ''; } })() }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "id": "36054469-89d5-4121-a817-717f4b6ebece",
+      "name": "Buscar token da instância",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -2848,
+        128
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-mensagens.example.invalid/send/menu",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $('Identificar instância').first().json.alertToken }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $('Identificar instância').first().json.chatid, type: 'button', text: 'QR expirou? Ele vale só uns 30 segundos. Clique abaixo para gerar outro.', choices: ['Gerar novo QR|sim_' + encodeURIComponent(String($('Identificar instância').first().json.instanceName || '').normalize('NFC').trim().toLowerCase())], footerText: 'Um novo QR code será enviado aqui no grupo' }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -832,
+        0
+      ],
+      "id": "66e9ebb8-c1e6-49b7-9b2f-83522ebd13e9",
+      "name": "Enviar botão novo QR",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Dados": {
+      "main": [
+        [
+          {
+            "node": "Instância desconectou?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Salvar token?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instância desconectou?": {
+      "main": [
+        [
+          {
+            "node": "Enviar alerta WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Instância conectou?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instância conectou?": {
+      "main": [
+        [
+          {
+            "node": "Montar mensagem conectado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar mensagem conectado": {
+      "main": [
+        [
+          {
+            "node": "Enviar alerta WhatsApp2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clique em Sim?": {
+      "main": [
+        [
+          {
+            "node": "Buscar token da instância",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identificar instância": {
+      "main": [
+        [
+          {
+            "node": "Instância identificada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instância identificada?": {
+      "main": [
+        [
+          {
+            "node": "Gerar QR (Zaptos)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar aviso de falha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gerar QR (Zaptos)": {
+      "main": [
+        [
+          {
+            "node": "Aguardar 3s QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguardar 3s QR": {
+      "main": [
+        [
+          {
+            "node": "Buscar QR (Zaptos)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar QR (Zaptos)": {
+      "main": [
+        [
+          {
+            "node": "Extrair QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair QR": {
+      "main": [
+        [
+          {
+            "node": "QR gerado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "QR gerado?": {
+      "main": [
+        [
+          {
+            "node": "Enviar QR no grupo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enviar aviso de falha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Clique em Sim?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salvar token?": {
+      "main": [
+        [
+          {
+            "node": "Guardar token da instância",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar token da instância": {
+      "main": [
+        [
+          {
+            "node": "Identificar instância",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar QR no grupo": {
+      "main": [
+        [
+          {
+            "node": "Enviar botão novo QR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
+
